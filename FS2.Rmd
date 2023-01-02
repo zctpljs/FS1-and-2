@@ -1,0 +1,458 @@
+---
+title: 'FS2'
+date: "`Sys.Date()`"
+output:
+  html_notebook:
+    code_folding: hide
+    df_print: paged
+    highlight: kate
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+# Pre-requisites
+```{r}
+library(matlib)
+library(data.table)
+library(tidyverse)
+```
+
+
+# Linear Regression
+```{r}
+# Example 1
+# Create the data.table
+dt <- data.table(a=c(20,40,60,80,100), 
+                 b=c(48, 55.1, 56.3, 61.2, 68))
+# Create the intercept
+dt <- dt %>% mutate(one=1)
+
+# Get into matrices X and y respectively
+X <- dt %>% select(one,a) %>% as.matrix()
+y <- dt %>% select(b) %>% as.matrix()
+# Solve for the regression coefficients
+library(matlib)
+inv(t(X)%*%X) %*% t(X)%*% y
+
+18238 - 57.72*300
+922/4000
+57.72 - (0.2305)*60
+
+c(1, 58) %>% t() %*% inv(t(X)%*%X) %*% t(X)%*% y
+```
+
+```{r}
+# Example 2
+dt <- data.table(x1=seq(2,14,2), 
+                 y=c(3.2, 5.2, 5.5, 6.4, 7.2, 8.5, 9.8))
+dt <- dt %>% mutate(one=1)
+
+
+X <- dt %>% select(one, x1) %>% as.matrix()
+Y <- dt %>% select(y) %>% as.matrix()
+inv(t(X)%*%X) %*% t(X) %*% Y
+
+422.6 - 8*45.8
+56.2/112
+6.542 - (56.2/112)*8 # 2.527714
+
+```
+
+```{r}
+# Example 3
+dt <- data.table(x1=seq(1, 3.8, 0.4),
+                 y=c(0.96, 1.33, 1.75, 2.14, 2.58, 2.97, 3.38, 3.75))
+
+dt <- dt %>% mutate(one = 1)
+X <- dt %>% select(one, x1) %>% as.matrix()
+Y <- dt %>% select(y) %>% as.matrix()
+b <- inv(t(X)%*% X) %*% t(X) %*% Y
+
+
+dt[,sum(x1*y)]
+(52.04 - (1/8)*19.2*18.86) /(52.8 - (1/8) * 19.2^2)
+
+
+dt %>% 
+    ggplot(aes(x=x1, y=y)) + 
+    geom_point(size=4, shape=3) + 
+    geom_smooth(method="lm")
+
+t(c(1, 2)) %*% b # 1.954166
+```
+
+```{r}
+# 1A.10
+b1 <- (41444 - (1/12)*540 * 780)/(30786 - (1/12)*540^2)
+
+780/12 - b1*540/12 # 20.9852
+
+b <- c(20.9852, b1)
+t(c(1,40))%*%b # 60.10947
+```
+
+```{r}
+# 1A.11
+1844-0.1*112^2 # 589.6
+6850 - 0.1 * 112 * 480 # 1474
+b1 <- 1474/589.6 # 2.5
+48-2.5*11.2 # 20
+# p_i = 20 + 2.5 n_i
+
+# B1 is the increase in cost associated with another 100 leaflets
+# 
+```
+```{r}
+dt <- data.table(one=1, x1=1:5, y=c(1.4, 2.9, 4.1, 5.8, 7.2))
+X <- dt %>% select(one, x1) %>% as.matrix()
+Y <- dt %>% select(y) %>% as.matrix()
+b <- inv(t(X)%*%X)%*%t(X)%*%Y
+b # 1.45 is the additional years of protection given by an additional coat of paint. 
+# Not suitable when extrapolating, because you are unsure if a linear specification remains correct
+t(c(1,7)) %*% b # 10.08 years
+
+## 
+dt <- rbind(dt, data.table(one=1, x1=c(6,8), y=c(8.2, 9.9)))
+dt
+X <- dt %>% select(one, x1) %>% as.matrix()
+Y <- dt %>% select(y) %>% as.matrix()
+b <- inv(t(X)%*%X)%*%t(X)%*%Y
+t(c(1,7))%*%b # 9.204911
+
+# Interpolating, have more data points. 
+```
+```{r}
+# Example 4
+204-(1/8)*36^2 # 42
+35+28+24+16+15+12+8+6
+478-(1/8)*36*144 # -170
+
+b1=-170/42 # -4.047619
+b1
+a=144/8 - (-170/42)*(36/8)
+a
+
+700+5*(a+b1*(2.5))
+
+```
+
+```{r}
+# 1B.6 - you got this wrong. Be careful. Take it slowly. 
+dt <- data.table(one=1, x1=c(1,5,10,16,17), y=c(9,12,16,21,23))
+X <- as.matrix(dt %>% select(one, x1))
+Y <- as.matrix(dt %>% select(y))
+b <- inv(t(X)%*%X)%*%t(X)%*%Y
+a1 <- 5*b[1] - 4*b[2] # 35.94446
+b1 <- b[2]/2 # 0.4250525
+a1+b1*32 # 49.54614
+```
+
+```{r}
+# 1B.7
+b1 <- 15.26/10.21
+a1 <- 9.88 - b1*4.58
+hold <- function(x){
+    return(a1+b1*x)
+}
+hold(x=(42-4)/8) # 10.13408
+```
+
+## 1.2
+```{r}
+# Example 7
+# S_yy
+371.75 - 0.2*42.9^2 # 3.668
+# S_xx
+589.09 - 0.2*53.7^2 # 12.352
+# S_yy
+467.45 - 0.2*53.7*42.9 # 6.704
+# 
+
+```
+
+
+```{r}
+# Question 2
+dt <- data.table(x=c(2,5,8,9,11,15), 
+                 m=c(110, 105, 103, 101, 96, 88))
+dt <- dt %>% mutate(mhat=114.3 - 1.655*x,
+                    res=m-mhat)
+dt %>% select(res) %>% sum()
+
+dt %>% 
+    ggplot() + 
+    geom_point(aes(x=x, y=res)) + 
+    geom_hline(yintercept=0, linetype="dashed") 
+
+# No clear pattern, think we're all good? 
+
+```
+
+```{r}
+dt <- data.table(t=c(5.1, 5.7, 6.3, 6.4, 7.1, 7.2, 8.0, 8.3, 8.7, 9.1),
+                 p=c(79, 81, 85, 86, 89, 84, 95, 96, 98, 99))
+dt <- dt %>% mutate(phat=51.04 + 5.308*t, 
+                    res=p-phat)
+dt[abs(res)==max(abs(res)),] # t=7.2, p=84 is outlier. 
+# Doesn't appear to follow the same pattern, so can remove?
+
+dt2 <- dt[res!=-5.2576]
+
+b <- dt2 %>% 
+    lm(formula=p~t, data=.) %>%  # 51.036, t=5.308
+    coefficients()
+t(c(1, 7.8)) %*% b # 92.43787
+```
+```{r}
+# Question 4 
+dt <- data.table(x=c(1.2, 1.7, 2.4, 3.1, 3.8, 4.2, 5.1),
+                 y=c(13.1, 12.5, 10.9, 9.4, 7.9, NA, 5.8))
+dt %>% mutate(yhat=15.7 - 2.02*x, 
+              res=y-yhat) %>% 
+    select(res) %>% 
+    sum(na.rm=T) # 0.346
+
+dt <- dt %>% mutate(yhat=15.7 - 2.02*x, 
+              res=y-yhat) # Therefore res = - 0.346 implies y = yhat + res = 7.216 - 0.346 
+
+dt[x==4.2, y:=7.216-0.346]
+dt %>% mutate(res=y-yhat) %>% select(res) %>% sum() # Almost 0
+# a = 6.87
+dt # There are three on one side, and four on the other so could be a good model. 
+
+```
+
+```{r}
+# Question 5
+4821 - (1/8)*193^2 # 164.875 = SYY
+7720-(1/8)*236^2 # 758 = SXX
+6046 - (1/8)*193*236 # 352.5 = SXY
+
+164.875 - (352.5)^2/758 # 0.9485488
+
+# Question 6
+1.949 - (23.13)^2/289.4 # 0.1003583
+# October has lower RSS with same units for outcome implies more likely for October.
+```
+```{r}
+dt <- data.table(x=c(0.7, 1.3, 1.8, 2.3, 2.9, 3.8), 
+                 y=c(15.4, 13.5, 12.1, 10.1, 8.5, 5.8), 
+                 one=1)
+b <- dt %>% 
+    lm(data=., formula=y~x) %>% coefficients()
+
+b # y = 17.549041 -3.116738 x
+# a is the estimated value of the car when it is new
+t(c(1,2))%*%b # 11.31557, so 11,316 pounds
+
+
+model <- glm(data=dt, formula=y~x)
+predict(model, newdata=as.data.frame(dt$x), type="response")
+?predict
+dt <- dt %>% mutate(yhat=17.549041-3.116738*x, 
+                    res=y-yhat)
+dt[,sum(res)] # Looks pretty good! Sum to zero
+dt %>% 
+    ggplot() + 
+    geom_point(aes(x=x, y=res)) # No obvious trend
+
+773.72 - (1/6)*65.4^2 - model$coefficients[2] * (120.03 - (1/6)*12.8*65.4) # 0.1147814 
+
+
+```
+Mixed exercises
+
+```{r}
+# Mixed exercises 1
+b <- (31185 - (1/12)*553*549)/6193
+a <- 45.73-b*46.083
+
+a
+b
+t(c(1,50))%*%c(a,b)
+```
+```{r}
+# Question 3
+dt <- data.table(x=c(3.4, 7.7, 12, 75, 58, 67, 113, 131),
+                 y=c(55, 240, 390, 1100, 1390, 1330, 1400, 1900), 
+                 one=1)
+dt
+dt[,sum((x-mean(x))^2)] # S_xx = 16350.05
+dt[,sum((x-mean(x))*(y-mean(y)))] # 210330.6
+dt[,sum((x-mean(x))*(y-mean(y)))] /dt[,sum((x-mean(x))^2)] # 12.86422
+dt[,mean(y)-12.86422*mean(x)] # 224.5154
+
+B <- glm(data=dt, formula=y~x) %>% coefficients()
+t(c(1,100)) %*% B # 1510.937
+
+B
+(3500-B[1])/B[2] # 254.6198 consumption
+# No good! Can't invert a prediction by OLS
+
+84.25 - (1/6)*13.5 * 25.5 # 26.875
+26.875/59.88 # 0.4488143
+(1/6)*13.5 - (26.875/59.88)*(1/6)*25.5 # 0.3425392
+B <- c((1/6)*13.5 - (26.875/59.88)*(1/6)*25.5 + 2,0.4488143/2)
+t(c(1,10)) %*% B
+
+```
+```{r}
+# Question 6c
+(0.16 + 0.79*50)*1.2
+```
+```{r}
+# Question 7
+dt <- data.table(x=c(140, 150, 170, 180, 180, 200, 220, 220), 
+                 y=c(150, 180, 190, 220, 240, 290, 300, 310))
+dt %>% 
+    ggplot(aes(x=x, y=y)) + 
+    geom_point(shape=3, colour="black", size=4) +
+    geom_smooth(method="lm", se=F, linetype="dashed", size=0.5, )
+
+dt %>% mutate(x2=x/10, y2=y/10) %>% glm(data=., formula=y2~x2) %>% coefficients()
+B <- dt %>% mutate(x2=x/10, y2=y/10) %>% glm(data=., formula=y2~x2) %>% coefficients()
+# recoding
+B[1] <- B[1]*10
+t(c(1,210)) %*% B # 289.5528
+```
+
+```{r}
+dt <- data.table(n=c(10, 13, 22, 15, 24, 16, 19), 
+                 w=c(2800, 3600, 6000, 3600, 5200, 4400, 5200))
+dt <- dt %>% mutate(x=n-10, y=w/400)
+dt[,sum((x-mean(x))^2)] # 148
+dt[,sum((x-mean(x))*(y-mean(y)))] # 78
+
+dt %>% 
+    glm(data=., formula=y~x) %>% coefficients()
+
+400*(7.310811 - 0.527027*10) # 816.2164
+400*.527027 # 210.8108
+
+dt %>% 
+    glm(data=., formula=w~n)
+
+preds1 <- function(x){
+    return(7.310811 + 0.527027 * x)}
+preds2 <- function(x){
+    return(816.2164 + 210.8108 * x)
+}
+
+dt %>% mutate(yhat=preds1(x), res1=y-yhat,
+              what=preds2(n), res2=w-what)
+
+```
+```{r}
+dt <- data.table(t=c(2,3,5,6,7,9,10), 
+                 TT=c(72, 68, 59, 54, 50, 42, 38))
+dt <- dt %>% mutate(TThat=80.445-4.289*t, 
+              res=TT-TThat)
+dt %>% select(res) %>% sum() # 0.023 # Rounding error
+
+
+957.43 - (-223)^2/52 # 1.103077
+
+-sum(c(-0.177, -0.196, 0.526, 0.124, -0.129, -0.216, -0.032)) # 0.1
+
+```
+
+# Chapter 2 
+```{r}
+# Question 10
+74458.75 - (1/8)*354.5^2 # 58749.97
+
+5667.5/sqrt(11148*58749.97) # 0.2214569
+
+# Question 11
+Sxy=180.37 - (1/7)*12*97.7
+Sxx = 22.02 - (1/7)*12^2
+Syy=1491.69 - (1/7)*97.7^2
+
+Sxy/sqrt(Sxx*Syy) # 0.9459204
+
+dt <- data.table(x=c(1.1, 1.3, 1.4, 1.7, 1.9, 2.1, 2.5),
+                 y=c(6.2, 10.5, 12, 15, 17, 18, 19))
+cor(dt$x, dt$y, method="pearson") # 0.9459204
+cor(dt$x, dt$y, method="spearman") 
+dt %>% mutate(yhat=-1.2905 + 8.8945*x, 
+              res=y-yhat)
+# Appears to be a concave polynomial, so arguable trend in residuals and not good linear fit. 
+```
+```{r}
+1-6*22/990 # 0.8666667
+
+c(1,2,3,4,5,2, 2) %>% rank(.,ties.method = "average")
+
+1-6/(6*7*5)
+```
+```{r}
+dt <- data.table(a=1+2*runif(n=100, min=-1, max=1), 
+           b=-1 + 1.5* runif(n=100, min=-1, max=1))
+
+dt[,cor(a,b)] # -0.2912456
+dt[,cor.test(a,b, method="kendall")]
+```
+```{r}
+# 2C.1
+sxx=131-(1/7)*29^2
+syy=140-(1/7)*28^2
+sxy=99-(1/7)*29*28
+
+sxy/sqrt(sxx*syy) # -0.9750169
+
+# Question 2
+sxx = 2586 - (1/11)*168^2
+syy = 320019 - (1/11)*1275^2
+sxy = 20704 - (1/11)*168*1275
+sxy/sqrt(sxx*syy) # 0.6604098
+
+# Question 4
+1-60/(7*8*9) # 0.8809524
+
+# Question 5
+1-276/(8*7*9)
+
+# Question 6 
+1-6*58/(11*12*13) # 0.7972028
+# Question 9 
+1-324/990 # 0.6727273
+
+# Question 10
+1-6*64/(5*6*7) # -0.8285714
+```
+
+## Mixed exercises
+```{r}
+# Question 1
+sxx = 465 - 0.1*67*65
+syy=429 - 0.1*65^2
+sxy=434 - 0.1*67*65
+sxy/sqrt(sxx*syy) # -0.1083237
+
+
+# Question 2
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

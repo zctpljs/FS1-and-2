@@ -1,0 +1,1353 @@
+---
+title: 'FS1 - Chapter 4 onwards'
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    df_print: paged
+    highlight: kate
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+```{r}
+rm(list=ls())
+library(magrittr, quietly = T)
+library(tidyverse, quietly = T)
+library(data.table)
+library(dplyr, quietly=T)
+library(ggplot2)
+theme_simple <- theme_bw() + theme(legend.position="none")
+dnbinomw<- function(trials, size, prob){
+    # Negative binomial distribution
+    # How many trials (x) needed for a fixed number of successes (size)
+    # Where probability of success is constant (p)
+    return(prob*choose(trials-1, size-1)*(prob)^(size-1)*(1-prob)^(trials-size))
+}
+
+dgeomw <- function(trials, prob){
+    return(prob*(1-prob)^(trials-1))}
+```
+
+# Chapter 4 
+
+
+### Preliminary questions
+
+```{r}
+dpois(x=0:3, lambda=4) %>% sum()
+dpois(x=7:10, lambda=4) %>% sum()
+
+library(data.table)
+library(tidyverse)
+options(scipen = 999)
+dt <- data.table(x=c(0:25),
+           p=dbinom(x=0:25, size=25, prob=0.2),
+           cp=dbinom(0:25, size=25, prob=0.2) %>% cumsum())
+
+dt[cp>0.9, x][1]
+```
+
+### Section 4.1
+
+```{r}
+dpois(x=0:1, lambda=6) %>% sum() # less than 0.05 so accept at 5% level.
+1 - dpois(x=0:5, lambda=2.5) %>% sum() # this is greater than 2%, but two sided so 1% level. 
+1 - dpois(x=0:16, lambda=10) %>% sum() # 0.027, less than 0.05
+```
+```{r}
+# Question 7
+1- sum(dpois(0:2, lambda=1)) # 5% answer is no
+# Question 8
+sum(dpois(0:6, lambda=9)) # 0.206, so no
+# Question 9
+sum(dpois(0:4, lambda=6*1.25)) # 0.132, so no
+# Question 10
+sum(dpois(0:3, lambda=6.9)) # 0.0871296 > 0.025 so nope. 
+
+# Question 11
+# day = 0.3; 20 = 6
+dpois(x=5, lambda=6) # 0.161
+dpois(x=0:8, lambda=6) %>% sum() # 0.8472
+# new lambda; 30 days = 5. Old lambda would be 9 breakdowns.
+sum(dpois(0:5, lambda=9)) # insufficient evidence
+
+# Question 12 
+# Old lambda is 2.25 per week, or 9 every 4 weeks
+# H0: lambda = 9, H1: lambda < 9
+sum(dpois(x=0:4, lambda=9)) # 0.055
+
+# Question 13
+# lambda = 1.5 a week
+# 6 week period there are 13 breakdowns; two sided test
+# H0: lambda = 9, H1: lambda != 9
+1-sum(dpois(0:12, lambda=9)) # 0.1242266 < 0.025
+
+# Question 14
+# 1% defect rate, 1000 in a box. X ~ B(1000, 0.01) ~ Po(10)
+dpois(x=9, lambda=10) # 0.12511
+dpois(x=0:7, lambda=10) %>% sum() # 0.22
+# Approximation OK as n large, p small, np>=10. Also CAR. 
+# H0: Lambda = 10, H1: Lambda < 10
+dpois(x=0:5, lambda=10) %>% sum() # 0.067
+dbinom(x=0:5, size = 1000, prob = 0.01) %>% sum() # 0.066
+```
+### Section 4.2
+```{r}
+# Example 4
+options(scipen = 999)
+dt <- data.table(x = 0:9, dpois(x=0:9, lambda=9), cumsum(dpois(x=0:9, lambda=9)))
+dt[V3<0.05, max(x)] # for a one sided test, sufficient evidence if 3 or fewer homes. 
+dt[V3<0.05] # P[X\le 3] = 0.0212
+
+# Example 5 
+# H0: Lambda = 7, H1: Lambda > 7 
+dt <- data.table(x=0:20, y = dpois(0:20, lambda=7), z = cumsum(dpois(0:20, lambda=7)))
+dt # 12 goals or more is sufficient to reject the Null! Incorrect; 13 or more because P[X\ge c] = 1 - P[X \le c-1]
+dt[x==11]
+
+ # Example 6
+# 0.325 per minute, therefore 20 minutes has 6.5
+dt <- data.table(x=0:12, y = dpois(0:12, lambda=6.5), z = cumsum(dpois(0:12, lambda=6.5)))
+# You'll reject the Null if one or zero calls comes in. 
+# You'll reject the null if 12 or more calls come in, but not for reasons you'd think. For upper tails you have to add one! Why? 1 - prob.
+dt[x<2, sum(y)] + 1- dt[x==11,z] # Notice y, not z for the first.
+
+# Question 1
+dt <- data.table(x = 0:4, y=dpois(0:4, lambda=5.5), z=cumsum(dpois(0:4, lambda=5.5)))
+dt[z<0.05] # Critical region is with x \in [0,1]
+dt <- data.table(x=0:15, y=dpois(0:15, lambda=8), z=dpois(0:15,lambda=8) %>% cumsum())
+dt[z>0.99] # X greater than 16 
+dt <- data.table(x=0:15, y=dpois(0:15, lambda=4), z=cumsum(dpois(0:15, lambda=4)))
+dt[z>0.95] # X greater than 8+1 = 9. 
+
+# Question 2
+dt <- data.table(x=0:20, y=dpois(0:20, lambda=8), z=cumsum(dpois(0:20, lambda=8)))
+dt[z>0.95] # 13+1 days, so 14. 
+
+# Question 7
+dt <- data.table(x=0:13, y=dpois(0:13, lambda=4), z=cumsum(dpois(0:13, lambda=4)))
+dt # 0 and 9
+
+dt <- data.table(x=0:30, y = dpois(0:30, lambda=9.5), z = cumsum(dpois(0:30, lambda=9.5)))
+dt[, a:=z-0.975]
+dt # c1 = 3, c2 = 16 + 1 = 17
+
+# Question 8 
+dt <- data.table(x=0:20, y=dpois(0:20, lambda=7.5), z = cumsum(dpois(0:20, lambda=7.5)), 
+                 a = cumsum(dpois(0:20, lambda=7.5))-0.025, 
+                 b = cumsum(dpois(0:20, lambda=7.5)) - 0.975)
+dt # c1 = 2, c2 -1 = 13, so c2 = 14
+
+dpois(x=0:2, lambda=7.5) %>% sum() + (1 - dpois(x=0:13, lambda=7.5) %>% sum())
+1 - dpois(3:13, lambda=7.5) %>% sum()  
+# 11 is within the acceptance region
+
+# Question 9 
+dt <- data.table(x=0:15, z = dpois(0:15, lambda=5) %>% cumsum())
+dt %>% mutate(a = z - 0.05, b = z-0.95) %>% tail(10)
+# c1 = 1, c2
+1 - sum(dpois(x=2:8, lambda=5))
+
+# Question 10
+dt <- data.table(x=0:20, z = cumsum(dpois(0:20, lambda=9)))
+dt %>% mutate(a = z-0.025, b = z - 0.975) %>% as.data.table() # c1 = 3 , c2 -1 = 15
+1 - sum(dpois(4:15, lambda=9)) # 0.0433
+
+
+# Question 11
+temp <- NULL
+for(i in seq(3, 20, by=0.5)){
+temp <-rbind(temp, c(i,1 - sum(dpois(3:14, lambda= i))))
+}
+temp # lambda = 6.5?
+
+opt <- function(a){abs(sum(dpois(x=0:2, lambda=a))+ 1-sum(dpois(x=0:14, lambda=a))- 0.05)}
+# opt <- function(a){(sum(dpois(x=0:2, lambda=a))+ 1-sum(dpois(x=0:14, lambda=a)- 0.05)^2)}
+optimise(f = opt, interval = c(0,20)) 
+dpois(0:2, lambda=6.4) %>% sum() + 1-dpois(0:14, lambda=6.4) %>% sum()
+dpois(0:2, lambda=8) %>% sum() + 1 - dpois(0:14, lambda=8) %>% sum()
+```
+Challenge:
+```{r}
+library(data.table)
+library(magrittr)
+library(dplyr)
+options(scipen = 999)
+# Question 12
+dt <- data.table(x=0:20, z = cumsum(dbinom(0:20, size=30, prob=0.5)))
+dt[z<0.02] # 8 
+
+dt <- data.table(x=1:10, z=cumsum(dgeomw(trials=1:10, prob=0.5)))
+dt[z>0.975] # 6 + 1 = 7
+# Challenge
+dt <- data.table(x=3:20, y=cumsum(dnbinomw(trials=3:20, size = 3, prob=0.18)))
+dt[y<0.05] # x<= 5
+
+dnbinomw(trials=3:5, size=3, prob=0.18) %>% sum()
+```
+# Chapter 5
+```{r}
+# Prior knowledge
+1-pnorm(q=115, mean=120, sd=8) # 0.7340145
+pnorm(q=130, mean=120, sd=8) - pnorm(q=120, mean=120, sd=8) # 0.3944
+qnorm(p=0.25, mean=120, sd=8) # 114.6
+
+1-dnbinomw(trials = 5:11, size = 5, prob=0.5) %>% sum() #27.4%
+
+
+1-pnorm(q=1.5) # 0.0668072
+
+z <- (40.5 - 40)/(2.25/4)^0.5
+1-pnorm(z) #0.252
+z <- (40.5 - 40)/(2.25/49)^0.5
+1 - pnorm(z) # 0.009815329
+
+# Question 5
+1-pnorm(0.5/(1/12)^0.5) # 0.04163226
+pnorm((20/7 - 3.5)/(1/12)^0.5) # 0.01297623
+
+# Question 6
+pnorm(1/(35/(12*750))^0.5)
+pnorm(1/(35/(12*30))^0.5)
+pnorm(-0.5/(1/6)^0.5)
+
+# Question 7
+1-pnorm(3, mean=2.85, sd=(1011/40000)^0.5) # 0.1727; forgot the zero
+# Question 8 
+dt <- data.table(x=seq(1,3000, by=1), 
+                 z = pnorm(q=3.6, mean=3.5, sd=sqrt(35/(12*seq(1, 3000, by=1)))) - 
+                     pnorm(q=3.4, mean=3.5, sd=sqrt(35/(12*seq(1, 3000, by=1)))))
+dt[z>0.99][1,] # 1936 or more. 
+
+# Question 9 
+pnorm(q=30000, mean=28500, sd=sqrt((6800^2)/15)) - 
+pnorm(q=25000, mean=28500, sd=sqrt((6800^2)/15))
+
+# Question 10
+dt <- data.table(x=1:100, z= pnorm(q=0.5*sqrt(1:100)/2.5)-pnorm(q=-0.5*sqrt(1:100)/2.5))
+dt[z>=0.94]
+```
+## Chapter 5.2
+```{r}
+# Example 4
+dnbinomw(trials=12, size=10, prob=2/3)
+pnorm(0.5/sqrt(0.3))
+# Question 1 
+sum(dpois(0:25, lambda=30))# 0.2083574
+pnorm(2.5, mean=3, sd=sqrt(0.3)) # 0.1806552
+# Question 2 
+1-pnorm(1)
+# Question 3 
+pnorm(2.4, mean=2, sd=sqrt(0.08))
+# Question 4
+pnorm(-sqrt(2))
+# Question 5
+dpois(4, lambda=3)
+# Question 6 
+pnorm(-1)
+#Question 6
+0.8/(0.2)^2
+1-pnorm(0.5)
+# Question 7
+dnbinomw(trials=35, size=10, prob=1/3)
+pnorm(5/sqrt(3))
+# Question 8 
+1-sum(dpois(0:350, lambda=300))
+# Question 9 
+pnorm(-sqrt(3))
+```
+Mixed exercises:
+```{r}
+#Question 1
+1-pnorm(2)
+# Question 2
+(c(1,2,4,5,7,8) * 1/6 )%>% sum()
+(c(1,2,4,5,7,8)^2 * 1/6) %>% sum() - ((c(1,2,4,5,7,8) * 1/6 )%>% sum())^2
+pnorm(-0.5/sqrt(6.25/20)) # 0.1855467
+# Question 3
+options(scipen = 999)
+dt <- data.table(x=1:100, z=pnorm(-sqrt(1:100)))
+dt[z<0.05]
+# Question 4
+1-pnorm(2, mean=5/3, sd = sqrt(25/(18*20)))
+# Question 5
+dpois(3, lambda=2)
+1-pnorm(25/24, mean=1, sd=sqrt(1/24)) 
+# Question 6 
+1-dnbinomw(trials=10:24, size=10, prob=1/2) %>% sum()
+1-pnorm(2.4, mean=2, sd=sqrt(0.2))
+# Question 7
+1-pnorm(59, mean=60, sd=sqrt(25/48))
+pnorm(5, mean=4.8, sd=sqrt(4.32/30))
+# Question 8 
+pnorm(5, mean=4.9, sd=sqrt(0.8^2/100))
+# Question 9 
+dt <- data.table(x=1:100, z=1-pnorm(42, mean=40, sd=sqrt(9/1:100)))
+dt[z<0.05]
+# Question 10
+1-pnorm(37, mean=35, sd=sqrt(0.45))
+# Question 11
+pnorm(0.57, mean=0.6, sd=sqrt(0.24/500)) + (1-pnorm(0.63, mean=0.6, sd=sqrt(0.24/500))) # these are the same!
+dt <- data.table(x=1000:2000, z=pnorm(0.57, mean=0.6, sd=sqrt(0.24/1000:2000)))
+dt[z<0.025]
+```
+
+```{r}
+dt <- data.table(x=4:33, z=dnbinomw(size=4, prob=0.12, trials=4:33) %>% cumsum())
+dt[z<0.025]
+```
+# Chapter 6
+```{r}
+# Prior knowledge
+# Question 1 
+6*exp(-5)
+sum(dpois(0:1, lambda=5))
+# Question 2
+(2/3)^5
+1-dgeomw(trials=1:5, prob=1/3) %>% sum()
+# Question 3 
+dbinom(x=70:100, size = 100, prob=0.6) %>% sum() # Actual probability
+1-pnorm(q=69.5, mean=60, sd=sqrt(24)) # Normal approximation
+```
+```{r}
+# Example 1
+
+dt <- data.table(n=2:8, 
+                 OB=c(12,15,22,41,33,21,16), 
+                 OM=c(6,12,21,37,35,29,20), 
+                 E =c(10,20,30,40,30,20,10))
+
+names <- c("OB","OM")
+dt[,paste0(names, "E"):=(.SD - E)^2/E, 
+   .SDcols=names]
+dt[,apply(X = .SD, FUN = function(X){sum(X)}, MARGIN=2),
+   .SDcols=paste0(names,"E")]
+
+dt[,paste0(names,"E2"):=(.SD)^2/E, .SDcols=names]
+dt[,.(sum(OBE2) - sum(OB), sum(OME2) - sum(OM))]
+
+# Mel's goodness of fit is higher, so more likely to be biased. 
+```
+
+```{r}
+# Question 6.1.2
+library(data.table)
+dt <- data.table(n=1:6, O=c(27,33,31,28,34,27))
+dt[,E:=sum(O)/6]
+dt[,sum(((O - E)^2)/E)] # 1.6
+dt[,sum((O^2)/E)-sum(O)] # 1.6
+
+# Question 6.1.3
+library(magrittr)
+dt <- data.table(year=c(7:11), O=c(190, 145, 145, 140, 130)) %>% dplyr::mutate(E=sum(O)/length(7:11)) %>% as.data.table()
+dt[,sum(((O-E)^2)/E)]
+dt[,sum((O^2)/E) - sum(O)]
+
+# 6.1.4
+dt <- data.table(O=c(117,43), E=c(0.75*160 , 0.25*160))
+dt[,sum(((O-E)^2)/E)] # 0.3
+
+# 6 .1.5
+dt <- data.table(O=c(28,22), E1=c(25,25), E2=c(30,20))
+dt[,.(sum((O-E1)^2/E1),sum((O-E2)^2/E2))] # Smaller for 60%
+```
+```{r}
+qchisq(p=0.95, df=5)
+qchisq(p=0.05, df=3)
+qchisq(p=0.90, df=4)
+
+qchisq(p=0.05, df=2) # Pr[Chi2 > q] = 0.95
+qchisq(p=0.01, df=4) # Pr[Chi2>q] = 0.99
+
+# 6.2.1
+# 6 degrees of freedom
+# 6.2.2 
+qchisq(p=0.95, df=5) # 11.0705
+# 6.2.3
+qchisq(p=0.95, df=5)
+qchisq(p=0.99, df=8) # 20.09
+qchisq(p=0.9, df=10) # 15.98718
+# 6.2.4
+qchisq(p=0.95, df=10) # 18.30704
+# 6.2.5
+qchisq(p=0.9, df=8)
+# 6.2.6
+qchisq(p=0.01, df=8) # 1.646
+# 6.2.7
+qchisq(p=0.05, df=5) 
+# 6.2.8
+qchisq(p=0.05, df=12)
+qchisq(p=0.95, df=12)
+# 6.2.9
+dt <- data.table(x=1:5, O=c(24,12,6,6,2), E=50*dgeomw(trials = 1:5, prob = 0.5))
+dt
+# dt[x>=3] <- dt[x>=3] %>% mutate(O=sum(O), E=sum(E)) %>% as.data.table()
+# dt %>% slice(1:3)
+dt # We see that the bottom two cells need combining. 
+dt <- data.table(x=1:3, O=c(24,12,14), E=50*c(dgeomw(trials = 1:2, prob = 0.5), sum(dgeomw(trials=3:5, prob=0.5))))
+dt[,sum((O-E)^2/E)] < qchisq(p=0.99, df=2) 
+```
+
+```{r}
+# 6.3.1
+dt <- data.table(a=1:6, b=c(16,11,13,15,8,9), c=rep(12,6))
+#H0: b ~ U_d(1,6)
+dt[,sum((b-c)^2/c)] # 4.3333
+qchisq(p=0.95, df=5) # 11.0705 
+# Insufficient evidence to reject the Null of uniform. 
+
+# 6.3.2
+dt <- data.table(a=1:0, O=c(15,105), E=120*c(0.2, 0.8))
+dt[,sum((O-E)^2/E)] # 4.21875
+qchisq(p=0.95, df=1) # 3.841459
+
+# 6.3.3
+dt <- data.table(a=0:2, O=c(4,73, 23), E=c(0.1, 0.6, 0.3)*100)
+dt[,sum((O-E)^2/E)] < qchisq(p=0.95, df=0.975)
+
+#6.3.4
+dt <- data.table(a=0:4, O=c(45,19,11,8,17), E=c(55,20,10,7,8))
+dt[,sum((O-E)^2/E)]
+qchisq(p=0.95, df=4)
+
+# 6.3.5
+dt <- data.table(O=c(7286, 9304, 32121, 112535, 244472, 281942), E=c(0.013, 0.015, 0.05, 0.165, 0.357, 0.4)*687660)
+dt[,sum((O-E)^2/E)]
+qchisq(p=0.95, df=5) # made an error here, it is the number of cells!
+```
+## Chapter 6.4
+```{r}
+# Example 8
+dt <- data.table(O=c(11,8,8,7,8,9,12,9,13,15))
+dt <- dt %>% mutate(E=sum(O)/length(O))
+dt[,sum((O-E)^2/E)] # 6.2
+qchisq(p=0.95, df=9) # 16.9
+
+# Example 9
+
+dt <- data.table(a=0:8, O=c(12,28,28,17,7,4,2,2,0))
+dt <- dt %>% mutate(E=dbinom(0:8, size=10, prob=0.2)*sum(O))
+
+dt <- dt[a<=3] %>% as.matrix() %>% rbind(colSums(filter(dt, a>3))) %>% as.data.table()
+
+
+dt[,sum((O-E)^2/E)] 
+qchisq(p=0.95, df=4) # 9.487729
+
+
+# 6.4.1
+# It is 4+
+dt <- data.table(a=0:4, 
+                 O=c(12,23,24,24,17), 
+                 E=100*c(dpois(0:3,lambda=2),
+                         1-sum(dpois(0:3, lambda=2))))
+dt[,sum(a*O)/sum(O)]
+dt[,sum((O-E)^2/E)]
+
+# 6.4.2
+dt <- data.table(O=c(15,23,19,20,14,11)) %>% mutate(E=sum(O)/length(O))
+dt[,sum((O-E)^2/E)] # 5.764706
+qchisq(p=0.95, df=5) # 11.0705
+
+# 6.4.3
+dt <- data.table(a=0:3, O=c(15,13,9,13), E=50*c(dpois(0:2, lambda=1.4), 1-sum(dpois(0:2, lambda=1.4))))
+dt[,sum(a*O)/sum(O)] # 1.4; minus one degree of freedom
+dt[,sum((O-E)^2/E)] # 5.04233
+qchisq(p=0.90, df=2) # 4.60517
+# We have sufficient evidence to reject the Null that this data is from a Poisson distribution with coefficient 1.4
+
+# 6.4.4
+dt <- data.table(a=0:6, O=c(0,26,36,20,10,6,2))
+# Finding P; 
+dt[,sum(O*a)/(sum(O)*6)] # p = 0.4
+dbinom(x=0:6, size=6, prob=0.4)*100 # have to combine the last three cells and the first cell
+dt <- data.table(a=1:4, 
+                 O=c(26,36,20,18), 
+                 E=100*c(sum(dbinom(0:1, size=6, prob=0.4)), 
+                     dbinom(2:3, size=6, prob=0.4), 
+                     sum(dbinom(4:6, size=6, prob=0.4))))
+dt[, sum((O-E)^2/E)] # 3.19
+qchisq(p=0.95, df=2) # 5.99 
+# Insufficient evidence to reject the NULL that this data came from a Binomial distribution with p=0.4. 
+
+# 6.4.5 - Wrong
+dt <- data.table(Emply=c(4,3,5,1,2), 
+                 Acc = c(22,14,25,8,12))
+dt <- dt %>% mutate(O=Acc/Emply, E = sum(O)/length(O), E2 = E*Emply)
+dt
+dt[,sum((O-E)^2/E)] # 1.18
+qchisq(p=0.95, df=4) # 9.49
+
+# 6.4.6
+dt <- data.table(a=0:8, 
+                 O=c(2,8,15,18,14,13,7,3,0))
+# Poisson coefficient is the mean
+dt[,sum(a*O)/sum(O)] # 3.45
+dt[,sum(O)] # 80
+dpois(0:8, lambda=3.45) * 80 # collapse back three and fronst two cells
+dt <- data.table(a=1:6, O=c(10, 15,18,14,13, 10), E=80*c(sum(dpois(0:1, lambda=3.45)), dpois(2:5, lambda=3.45), 1-sum(dpois(0:5, lambda=3.45))))
+# <=1, 2, 3, 4, 5, 6+
+dt[,sum((O-E)^2/E)] # 0.9896
+qchisq(p=0.95, df=4) # 9.487729
+
+# 6.4.7
+# Independent of each other, constant average rate
+dt <- data.table(a=0:5, O=c(50, 24, 12, 9, 5, 0))
+dt[,sum(a*O)/sum(O)] # 0.95
+dt[,sum(O)] # 100
+dpois(0:5, lambda=0.95) * 100 # merge the last three cells
+dt <- data.table(a=0:3, 
+                 O=c(50,24,12,14), 
+                 E=100*c(dpois(0:2, lambda=0.95), 1-sum(dpois(0:2, lambda=0.95))))
+dt[,sum((O-E)^2/E)] # 16.04645
+qchisq(p=0.95, df=2) # 5.99
+
+# 6.4.9
+dbinom(3:5, size=8, prob=0.5)*200
+
+```
+
+
+```{r}
+# 6.6.4
+library(TREX)
+dt <- data.table(a=1:5, O=c(76, 17, 4, 2, 1))
+1/dt[,sum(a*O)/sum(O)] #0.741
+
+dt[,E:=c(dgeomw(trials=1:4, prob=0.741), 1-sum(dgeomw(1:4, prob=0.741)))]
+dt
+dt[,E:=sum(O)*E]
+dt <- dt %>% as.matrix()
+dt <- rbind(dt[1:2,], t(colSums(dt[3:5,])))
+dt[,sum((O-E)^2/E)] # 0.311756
+qchisq(p=0.975, df=1) # 5.02
+
+# 6.6.5
+dt <- data.table(a=1:8, O=c(12,14,11,10,5,9,7,7), 
+                 E=75*c(dgeomw(trials = 1:7, prob=5/26), 
+    1-sum(dgeomw(trials=1:7, prob=5/26))))
+#X~geom(5/26)
+dt <- data.table(a=1:6, O=c(12,14,11,10,5,23), 
+                 E=75*c(dgeomw(trials = 1:5, prob=5/26), 
+    1-sum(dgeomw(trials=1:5, prob=5/26))))
+dt[,sum((O-E)^2/E)] # 2.419
+qchisq(p=0.95, df=5) ## 11.0705
+
+# Challenge
+dt <- data.table(a=10:15, 
+                 O=c(10,25,29,15,15,10), 
+                 E = c(dnbinomw(trials=10:14, size=10, prob=0.8), 
+  1-sum(dnbinomw(trials=10:14, size=10, prob=0.8))) * 104)
+# MLE by hand, p=0.8
+# Negative binomial mean is r/p, so 10/\bar{x} is the one
+10/dt[,sum(a*O)/sum(O)] # 0.8137715
+
+dt
+dt[,sum((O-E)^2/E)] # 3.638
+qchisq(p=0.95, df=4) # 9.487729
+```
+Mixed exercises 6
+```{r}
+# 1
+qchisq(p=0.99, df=10) # 23.20925
+# 2
+qchisq(p=0.95, df=8) # 15.50731
+# 3
+# 8 degrees of freedom
+qchisq(p=0.95, df=8) # If X2>15.50731 then reject
+# 4
+# 6 df
+qchisq(p=0.95, df=6) # 12.59159
+# 5 
+# H0: Drug taking is statistically independent of catching the cold
+O <- matrix(c(34, 66,
+              45, 55), nrow=2, byrow=T)
+E <- outer(rowSums(O), colSums(O))/sum(O)
+sum((O-E)^2/E) # 2.531646
+qchisq(p=0.95, df=1) # 3.84159
+
+# 6
+dt <- data.table(a=0:3, O=c(38, 32, 10, 0))
+# Find P; MLE is mean of O
+dt[,sum(O*a)/sum(O)] # lambda = 0.65
+
+dpois(0:3, lambda=0.65) * 80 # Have to collapse last cell
+
+dt <- data.table(a=0:2, O=c(38, 32, 10),
+                 E = 80*c(dpois(0:1, lambda=0.65), 1-sum(dpois(0:1, lambda=0.65))))
+
+dt[,sum((O-E)^2/E)] # 1.314099
+qchisq(p=0.95, df=1) # 3.841459
+
+# 7 
+O <- matrix(c(23, 27, 
+              32, 18), nrow=2, byrow=T)
+E <- outer(rowSums(O), colSums(O))/sum(O)
+sum((O-E)^2/E) #3.2727
+qchisq(p=0.90, df=1) #2.71
+
+#8 
+dt <- data.table(O=c(20,16,25,18,21), E=rep(20,5))
+dt[,sum((O-E)^2/E)] #2.3
+qchisq(p=0.95, df=4)
+
+#9
+# MLE implies p=1/\bar{x}
+dt <- data.table(a=0:5, O=c(1,1,5,11,24,8))
+dt[,sum(a*O)/(sum(O)*5)] # 0.72
+
+dbinom(0:5, size=5, prob=0.72)*50
+dt <- data.table(a=2:5, O=c(7,11,24,8), 
+                 E=50*c(sum(dbinom(0:2, size=5, prob=0.72)),
+                     dbinom(3:5, size=5, prob=0.72)))
+dt[,sum((O-E)^2/E)] #2.624061
+qchisq(p=0.95, df=4) # 9.487729
+
+# 10
+dt <- data.table(a=0:3, O=c(112, 56, 40, 0))
+dt[,sum(a*O)/sum(O)] # 0.6538462
+dpois(0:3, lambda=0.6538462) * 208
+dt[,E:=dpois(0:3, lambda=0.6538462) * 208]
+dt[,sum((O-E)^2/E)] #20.65154
+qchisq(p=0.95, df=2) #5.99
+# Reject the null
+
+# 11 - Wrong?
+dt <- data.table(O=c(10,35,15), E=c(30,55,15))
+dt[,sum((O-E)^2/E)] # 20.61
+qchisq(p=0.95, df=2) # 5.99
+
+# 12
+library(TREX)
+dt <- data.table(a=0:9, O=c(0,4,7,8,10,6,7,4,4, 0))
+dt[,sum(a*O)/sum(O)] # 4.28
+dpois(0:9, lambda=4.28)*50 # collapse first three, last three
+dt <- data.table(a=2:7, O=c(11, 8, 10, 6, 7, 8), 
+                 E=50*c(sum(dpois(0:2, lambda=4.28)),
+                     dpois(3:6, lambda=4.28), 
+                     1-sum(dpois(0:6, lambda=4.28))))
+
+dt[,sum((O-E)^2/E)] # 1.18
+qchisq(p=0.95, df=4) #9.49
+
+# 13
+O <- matrix(c(100, 600, 
+              80, 800), nrow=2, byrow=T)
+E <- outer(rowSums(O), colSums(O))/sum(O)
+sum((O-E)^2/E) # 10.42259
+qchisq(p=0.95, df=1) # 3.84
+
+# 14
+O <- matrix(c(74, 28, 68, 
+              45, 40, 45), nrow=2, byrow=T)
+E <- outer(rowSums(O), colSums(O))/sum(O)
+sum((O-E)^2/E) # 8.687399
+qchisq(p=c(0.95,0.99), df=2) # 5.99, 9.21034
+
+# 15
+exp(-2.15)*2.15 # dpois(1, lambda=2.15)
+1-dpois(0:1, lambda=2.15) %>% sum() # 0.633
+dt <- data.table(a=0:6, O=c(10, 12, 14, 12, 8, 3, 1))
+dt[,sum(a*O)/sum(O)] # 2.15 as required
+
+dt <- data.table(O = c(10,12,14,12, 12),
+                 E=c(dpois(0:3, lambda=2.15), 
+                     1-sum(dpois(0:3, lambda=2.15))) * 60)
+dt[,sum((O-E)^2/E)] #2.507
+qchisq(p=0.95, df=3) #7.815
+
+# 16
+dt <- data.table(a=1:7, O=c(130,54,24,28,13,5,1))
+1/dt[,sum(a*O)/sum(O)] # 0.4866412
+dgeomw(1:7, prob=0.4866412) * 255 # collapse last 2
+dt <- data.table(a=1:6, O=c(130,54,24,28,13,6), 
+                 E=255*c(dgeomw(1:5, prob = 0.4866412), 1-sum(dgeomw(1:5, prob=0.4866412))))
+dt[,sum((O-E)^2/E)] #14.84
+qchisq(p=0.95, df=4) # 9.487729
+
+# 17 
+
+# Challenge
+dt <- data.table(a=seq(2.5, 22.5, by=5), 
+                 O = c(7,63,221,177,32))
+M <- dt[,sum(a*O)/sum(O)]
+V <- dt[,sum(a^2*O)/sum(O)] - dt[,sum(a*O)/sum(O)]^2
+# V <- c(rep(2.5, 7), rep(7.5, 63), rep(12.5, 221), rep(17.5, 177), rep(22.5, 32)) %>% var()
+dt <- data.table(a=seq(2.5, 22.5, by=5), 
+                 O = c(7,63,221,177,32), 
+                 E = 500*c(pnorm(5, mean=M, sd=sqrt(V)),
+
+                           pnorm(10, mean=M, sd=sqrt(V)) - pnorm(5, mean=M, sd=sqrt(V)),
+
+                           pnorm(15, mean=M, sd=sqrt(V)) - pnorm(10, mean=M, sd=sqrt(V)),
+
+                           pnorm(20, mean=M, sd=sqrt(V)) - pnorm(15, mean=M, sd=sqrt(V)),
+
+                           1- pnorm(20, mean=M, sd=sqrt(V))))
+dt
+dt[,sum((O-E)^2/E)] # 3.24
+
+
+
+```
+
+Chapter 7 - Probability Generating Functions
+```{r}
+# Prior knowledge
+# Q1
+dpois(x=5, lambda=4.5)  # 0.1708269
+exp(-4.5)*(4.5^5)/factorial(5)
+
+sum(dpois(0:3, lambda=4.5)) # 0.342296
+# 4.5
+# 4.5
+
+# Q2
+dgeomw(trials=5, prob=0.3) # 0.3*0.7^4 = 0.7203
+(1-0.3)^2 # 0.49
+1-sum(dgeomw(trials=1:2, prob=0.3))
+# E = 10/3, V = 0.7/0.3^2 = 7.777778
+
+# Q3
+dnbinomw(trials=13, size=5, prob=0.35) # 0.08284232
+0.35 * choose(n=12, k=4) * (0.35^4) * (0.65^8) # 0.08284232
+sum(dnbinomw(trials=5:12, size=5, prob=0.35)) # 0.4166549
+# E = 5/0.35 = 14.28571; V = r(1-p)/p^2 = 5(0.65)/0.35^2 = 26.53061
+
+```
+# Chapter 8
+```{r}
+# Prior knowledge test
+# X ~ N(\mu, 2.3^2), test whether \hat{mu} = 11.1 from 20 observations is sufficient evidence to conclude that \mu is greater than 10. 
+# HO: \mu = 10, H1: \mu > 10
+pnorm(q=11.1, mean=10, sd=2.3) # Insufficient evidence?
+1-pnorm(q=11.1, mean=10, sd=sqrt(0.2645)) # 0.01622401, so fail to reject at 1% level. 
+
+# MS2 - Chapter 3, Example 15
+# Random sample of 50 bolts from an assumed normal distribution of N(0.580, 0.015) - what's the rejection region for a 1% test?
+qnorm(p=0.005, mean=0.580, sd=0.015/sqrt(50)) # 0.5745358; lower bound
+qnorm(p=0.995, mean=0.580, sd=0.015/sqrt(50)) # 0.5854642 ; upper bound
+
+# Question 2 - Poisson at 10%
+dt <- data.table(a=0:15, b=cumsum(dpois(0:15, lambda=5)), c=ppois(0:15, lambda=5))
+dt <- data.table(x=0:15, z = cumsum(dpois(0:15, lambda=5)))
+dt %>% mutate(a = z-0.05, b = z - 0.95) %>% as.data.table() # c1 = 3 , c2 -1 = 15
+1 - sum(dpois(4:15, lambda=9)) # 0.0433
+dt[b<0.05] # 1 and below
+dt[b>0.95] # 9 and above
+sum(dpois(0:1, lambda=5)) # 0.04042768
+1-sum(dpois(0:8, lambda=5)) #  0.06809363
+
+dt <- data.table(a=0:10, b=cumsum(dgeomw(0:10, prob = 0.15)))
+dt
+dt[b>0.95]
+```
+
+
+```{r}
+1-pnorm(q=11.1, mean=10, sd=sqrt(0.2645)) # 0.01622401
+# Question 2
+dt <- data.table(a=0:10, z=cumsum(dpois(0:10, lambda=5)))
+dt[z<0.05]
+dt[z>0.95] # 9 therefore c2 -1 = 9, or c2 = 10. Region is c1=1, c2=10
+
+log(0.95)/log(0.85)
+1-(1-0.15)^(0:20)
+
+
+# Example 4
+options(scipen = 9)
+sum(dbinom(0:7, size = 20, prob = 0.5)) # 0.131588; fail to reject at conventional levels
+dt <- data.table(a=0:20, z=cumsum(dbinom(x = 0:20, size = 20, prob = 1/2)))
+dt[z<0.025] # 5
+dt[z>0.975] #14 -> 15
+
+# Actual significance level?
+dt[z<0.025] %>% tail(1)[2] 
+dt[z<0.025][6,2] + 1- dt[z>0.975][1,2] # 0.04138947	
+
+# Power given tails three times more likely than heads?
+1-sum(dbinom(c(0:5, 15:20), size=20, prob=0.25)) # 0.3828235
+sum(dbinom(c(6:14), size=20, prob=0.25)) # 0.3828235
+
+# Example 5
+1+log(0.05)/log(0.9) # 29.43 # Therefore critical region is X>=30
+1-sum(dgeomw(trials=1:29, prob=0.1)) # 0.047  == 0.9^29
+sum(dgeomw(1:29, prob=0.01)) # 0.2528279
+
+```
+Exercise 8a
+```{r}
+# Binomial with sample size of 10
+options(scipen = 9)
+dt <- data.table(a=0:10, b=dbinom(0:10, prob=0.25, size=10) %>% cumsum()) # K>=6
+1-dt[b>0.95][1,2] # 0.01972771	
+sum(dbinom(0:5, size=10, prob=0.3)) # 0.952651
+
+# Binomial with sample size of 20
+dt <- data.table(a=0:20, z= cumsum(dbinom(x=0:20, size=20, prob=0.3)))
+dt[z<0.01] # c=1, T1 = 0.0076372598
+1-sum(dbinom(0:1, size=20, prob=0.25)) # 0.9756874
+
+# Two sided test
+dt <- data.table(a=0:10, z=cumsum(dbinom(x=0:10, size=10, prob=0.45)))
+dt[z<0.025] # cl = 1; 0.023
+dt[z>0.975] # cu = 8+1; 0.995
+
+# Question 10 
+dt <- data.table(a=1:2000, z=cumsum(dgeomw(trials=1:2000, prob = 0.004)))
+dt[z<0.05] # cl = 12
+dt[z>0.949] # cu = 747+1 
+
+# Question 11 
+dt <- data.table(a=0:40, z=cumsum(dbinom(0:40, prob=0.05, size=40)))
+dt[z>0.95] # k=4+1=5
+1-dt[z>0.95][1,2] # 0.04802826	
+
+dt2 <- data.table(a=1:50, z=cumsum(dgeomw(trials=1:50, prob=0.05)))
+dt2[z<=0.05] # c1=1; 0.05 chance of T1
+
+1-0.0588 # 0.9412
+sum(dbinom(x=0:4, size=40, p=0.0588)) # 0.9161818
+```
+## 8.2
+```{r}
+# Example 6
+qnorm(p=0.025, mean=1, sd=0.04/sqrt(10)) # 0.9752082
+qnorm(p=0.975, mean=1, sd=0.04/sqrt(10)) # 1.024792
+a <- pnorm(q=c(0.9752082,1.024792), mean=1, sd=0.04/sqrt(10))
+a[1] + 1-a[2] # 0.05
+
+# If mean weight is actually 1.02, what's the probability of a type 2 error?
+pnorm(q=1.024792, mean=1.02, sd=0.04/sqrt(10)) - pnorm(q=0.9752082, mean=1.02, sd=0.04/sqrt(10)) # 0.6473978
+
+# Example 7
+qnorm(p=0.05, mean=150, sd=6/5) # 148.0262
+# qnorm(p=0.975, mean=150, sd=6/5) # 152.352
+
+qnorm(p=0.01, mean=150, sd=6/5) # 147.2084
+# qnorm(p=0.995, mean=150, sd=6/5) # 153.091
+
+# True new mu is 147, then implies the type 2 probability is 
+1-pnorm(148.0262, mean=147, sd=6/5) # 0.1962294
+1-pnorm(147.2084, mean=147, sd=6/5) # 0.4310637
+```
+Exercise 8.b
+```{r}
+qnorm(p=0.99, mean=50, sd=3/sqrt(20)) # 51.56056; only a 1% chance more than that given H0 is correct. 
+#0.01
+# True mean is 53
+pnorm(51.56056, mean=53, sd=3/sqrt(20)) # 0.01594485
+
+# Question 2
+qnorm(p=0.05, mean=30, sd=2/sqrt(16)) # 29.17757
+# 0.05
+1-pnorm(q=29.17757, mean=28.5, sd=2/sqrt(16)) # 0.08768648; reverse in mind
+
+# Question 3
+qnorm(p=0.005, mean=40, sd=4/5) # 37.93934
+qnorm(p=0.995, mean=40, sd=4/5) # 42.06066
+# 0.05
+# True is 42
+pnorm(42.06066, mean=42, sd=4/5) - pnorm(37.93934, mean=42, sd=4/5) # 0.5302206
+
+# Question 4
+qnorm(p=0.025, mean=15, sd=1/5) # 14.60801
+qnorm(p=0.975, mean=15, sd=1/5) # 15.39199
+pnorm(15.39199, mean=15.6, sd=1/5) - pnorm(14.60801, mean=15.6, sd=1/5) # 0.149158
+
+# Question 5
+qnorm(p=0.95, mean=40, sd=8/sqrt(30)) # 42.40246
+pnorm(q=42.40246, mean=42, sd=8/sqrt(30)) # 0.6085514
+# Increase the sample size only way of keeping significance the same and lowering the P2
+
+```
+8.3
+```{r}
+# Example 8
+qbinom(p=0.1, size=25, prob=0.3)
+dt <- data.table(x=0:25, z=cumsum(dbinom(x=0:25, size=25, prob=0.3)))
+dt[z<=0.1] # 4!
+dt[x==4][,2] # 0.09047192
+# p =0.2, what is the power of this test? Given H0 is false, correctly rejecting H0. So probability that X is in the critical region given p=0.2. 
+dt <- data.table(x=0:25, z=cumsum(dbinom(x=0:25, size=25, prob=0.2)))
+dt[x==4] # 0.4206743	
+
+# Example 9, if less than 106 then regulatory action
+qnorm(p=0.05, mean=106, sd=5/sqrt(30)) # 104.4985
+pnorm(q=104.4985, mean=102, sd=5/sqrt(30)) # 0.9968996
+# Do the diagrams in your head
+
+
+# Example 10
+dgeomw(trials=1:5, prob=0.02) %>% sum() # 0.0960792
+1-dgeomw(trials=1:100, prob=0.02) %>% sum() # 0.1326196
+0.98^100 # 0.1326196
+1 - 0.0960792 - 0.98^100 # 0.7713012 inbetween
+# Then have a 0.0960792 chance of rejecting, and a 0.9039208 chance of accepting
+# 1-dgeomw(trials=1:5, prob=0.02) %>% sum()
+# Size is the probability of incorrectly accepting H1; so rejecting given p=0.02 is true
+0.0960792 + (1 - 0.0960792 - 0.98^100)*0.0960792 # 0.1701852
+# First term is if first time X\le 5, second term is conditional on the first go being between 6 and 100, the probability of rejecting on the second term. 
+
+# If p=0.015, power is the probability of correctly rejecting the Null given the cutoffs we have.
+sum(dgeomw(trials=1:5, prob=0.015)) + sum(dgeomw(trials=6:100, prob=0.015))*sum(dgeomw(trials=1:5, prob=0.015)) # 0.1242129 
+
+```
+Exercise 8.3
+```{r}
+# Question 1 - Sample mean from normal distribution with H0 mean = 20, sd=3^2, n=25. ONe sided upper.
+qnorm(p=0.95, mean=20, sd=3/5) # 20.98691
+1-pnorm(q=qnorm(p=0.95, mean=20, sd=3/5), mean = 20.8, sd=3/5) # 0.3777026
+# Question 2 - Binomial one sided p =0.35
+dt <- data.table(a=0:20, z=cumsum(dbinom(x=0:20, size=20, prob=0.35)))
+1-dt[z>0.95] %>% slice(1) %>% select(z) # 12 or higher
+# Size = 0.01957936	
+dt <- data.table(a=0:20, z=cumsum(dbinom(x=0:20, size=20, prob=0.36)))
+1-dt[a==11][,2] # 0.02469464	
+
+# Question 3 - Poisson; lambda < 4.5 - size of the test, power given 4.1
+dt <- data.table(a=0:20, z=cumsum(dpois(x=0:20, lambda = 4.5)))
+dt[z<0.05] # 0.01110900
+dpois(x=0, lambda=4.1) # 0.01657268 = exp(-4.1)
+
+# Question 4
+0.004 %>% sqrt()
+qnorm(p=0.025, mean=2, sd=sqrt(0.004/25)) # 1.975208
+qnorm(p=0.975, mean=2, sd=sqrt(0.004/25)) # 2.024792
+
+1 - (pnorm(qnorm(p=0.975, mean=2.02, sd=sqrt(0.004/25)), mean=2, sd=sqrt(0.004/25)) - pnorm(qnorm(p=0.025, mean=2.02, sd=sqrt(0.004/25)), mean=2, sd=sqrt(0.004/25))) # 0.3526081
+
+# Question 5
+dt <- data.table(a=0:10, z=cumsum(dbinom(x=0:10, size=10, prob=0.4)))
+1-dt[a==6] # 0.05476188
+dt <- data.table(a=0:10, z=cumsum(dbinom(x=0:10, size=10, prob=0.8)))
+1-dt[a==6] # 0.8791261
+# Power is higher for values of p further from 0.3. 
+
+# Question 6
+# Type one is incorrectly accepting the alternative hypothesis. 
+# The size is the probability of committing a type 1 error. 
+1-pnorm(q=25, mean=20, sd=sqrt(10)) # 0.05692315
+
+# Question 7
+# p>0.01 for geometric with alpha = 0.05
+dt <- data.table(a=1:20, z=cumsum(dgeomw(trials=1:20, prob=0.01)))
+dt[z<0.05] # lower limit is 5
+
+dt <- data.table(a=1:5, cumsum(dgeomw(trials=1:5, prob=0.2)))
+dt # 0.67232
+
+# Question 8
+dt <- data.table(a=1:400, z=cumsum(dgeomw(trials=1:400, prob=0.01)))
+dt[z<0.025] # 2? 
+dt[z>0.9749] # 367 + 1 = 368
+sum(dgeomw(trials=1:2, prob=0.02)) + 1 - sum(dgeomw(trials=1:367, prob=0.02)) # 0.04020252
+
+# Question 9
+options(scipen = 9)
+1-sum(dpois(x=0:11, lambda=8)) + sum(dpois(x=10:11, lambda=8))*(1-sum(dpois(0:7, lambda=8))) # .2057148
+1-sum(dpois(x=0:11, lambda=1)) + sum(dpois(x=10:11, lambda=1))*(1-sum(dpois(0:7, lambda=1))) # 0.00000000083274425
+
+# Question 10
+library(TREX)
+pnorm(q=79, mean=80, sd=sqrt(25/20)) # 0.1855467
+dgeomw(trials=1:10, prob=pnorm(q=79, mean=80, sd=sqrt(25/20))) %>% sum() #  0.8715713
+
+dgeomw(trials=1:10, prob=pnorm(q=79, mean=81, sd=sqrt(25/20))) %>% sum() # 0.3128074
+
+# Challenge
+dt <- data.table(a=0:20, z=cumsum(dbinom(x=0:20, size=20, prob=0.08)))
+dt[,z-0.95] # 3 or 4; larger error. More conservative so critical region is X>=5
+1-sum(dbinom(x=0:4, size=20, prob=0.08)) # probability of getting it wrong each time
+dt <- data.table(a=1:20, z=cumsum(dgeomw(trials=1:20, prob =1-sum(dbinom(x=0:4, size=20, prob=0.08)))))
+dt # maximum five boxes can be checked before the probability of a type one error is less than 0.1
+
+# If the first four boxes pass then no recalibration
+# Say first two boxes are fine at 0.08, and the second two have 0.2. 4 boxes were checked; what's the power of this test? What's the probability of rejecting the null of p=0.08 given the last two boxes were p=0.2?
+
+p1 <-  1-sum(dbinom(x=0:4, size=20, prob=0.08)) # rejecting a box R12
+p2 <- 1-sum(dbinom(x=0:4, size=20, prob=0.2)) # rejecting a box R34
+# 4 boxes checked, total probability we reject the null correctly?
+p1 + p1*(1-p1) + (1-p1)^2 * p2 + (1-p1)^2 * (1-p2) * p2 # 0.6179552
+
+```
+Exercise 8.4
+```{r}
+# Example 11
+options(scipen = 9)
+1-sum(dpois(0:6, lambda=3.5)) # 0.0652881
+
+dt <- data.table(a=seq(0.5, 10.5, by=0.5), 
+                 b=1-sum(dpois(0:6, lambda=seq(0.5, 10.5, by=0.5))))
+# ppois(6, lambda=3.5) = sum(dpois(0:6, lambda=3.5)) = Pr[X\le6]
+dt <- data.table(a=seq(0.5, 10.5, by=0.5), 
+                 b=1-ppois(6, lambda=seq(0.5, 10.5, by=0.5)))
+# To colour the points arbitrarily
+dt <- dt %>% mutate(c=if_else(b>0.5, 1,0))
+
+library(ggplot2)
+library(hrbrthemes)
+ggplot(data=dt, mapping=aes(x=a, y=b, colour=c)) + 
+    geom_point() + 
+    geom_line(colour="black") + theme_simple
+
+theme_simple <- theme_bw() + theme(legend.position="none")
+
+# Example 12
+sum(dbinom(x=0:1, size = 10, prob=0.2)) # 0.3758096
+p <- 0.4
+(1-p)^5 + (1-(1-p)^5)*(1-p)^5 # 0.1494734
+
+dt <- data.table(a=c(0.1, 0.2, 0.25, 0.3, 0.35))
+dt <- dt %>% mutate(A = (1-a)^10 + 10*a*(1-a)^9, 
+              B=(1-a)^5 + (1-(1-a)^5)*(1-a)^5)
+dt # test B strictly dominates for all plausable levels of A considered for a one-sided test, but also requires less time. 
+
+# Example 3
+1-dgeomw(1:30, prob=0.1) %>% sum() # 0.04239116
+# Power function is (1-p)^30
+
+```
+Exercise 8.4
+```{r}
+# Size of a test; 
+dpois(0:2, lambda=6.5) %>% sum() # Probability of a type one error is the probability or incorrectly accepting H0, or the probability that X <=2 given the hypothesis is actually true. 
+ppois(q=2, lambda=6.5) # 0.430
+dt <- data.table(a=1:6, b=ppois(q=2, lambda=1:6))
+dt # s=0.6766764, t = 0.1246520	
+dt[b<0.5]
+ggplot(data=dt, mapping=aes(x=a, y=b)) + geom_point() + geom_line() + theme_simple
+
+# solve(ppois(q=2, lambda=x), 0.5) # ????
+
+# Question 2
+dbinom(x=0:2, size=12, prob=0.45) %>% sum() # 0.04214198
+pbinom(q=2, size=12, prob = 0.3) # 0.2528153
+
+# Question 3 
+dbinom(x=8:10, size=10, prob=0.4) %>% sum() #.01229455
+dt <- data.table(a=seq(0.1, 1, by=0.1),z= 1-pbinom(q=7, size=10, prob=seq(0.1, 1, by=0.1))) # 0.054687500, 0.6777995264
+dt # Power increases as the value of p moves further from zero. 
+
+# Question 4
+# Test A, reject p<0.5 if number of heads is two or fewer
+pbinom(2, size=10, prob=0.5) # 0.0546875
+# Test B, coin is spun 5 times and if no heads reject, if there is a head try again and if no heads reject.
+# Probability of rejecting each time given Null of fairness
+p <- 0.5
+(1-p)^5 + (1-(1-p)^5)*(1-p)^5 # 0.06152344
+
+dt <- data.table(p=c(0.1, 0.2, 0.25, 0.3, 0.35, 0.4))
+dt <- dt %>% mutate(A= pbinom(2, size=10, prob=p),
+                    B=(1-p)^5 + (1-(1-p)^5)*(1-p)^5 )
+# dt
+# For the same number of spins the gambler will have better power using Binomial, so test A.
+ggplot(data=dt) + 
+    geom_line(data = dt, mapping = aes(x=p, y=A), colour=BITBlue) + 
+    geom_line(data = dt, mapping= aes(x=p, y=B), colour=BITOrange) + 
+    theme_simple + 
+    geom_text(x=0.2, y=0.75, label="Test A", colour=BITBlue) +
+    geom_text(x=0.2, y=0.5, label="Test B", colour=BITOrange)
+```
+
+```{r}
+# Exercise 5
+dt <- data.table(a=1:100, b=cumsum(dgeomw(trials=1:100, prob=0.15)))
+dt[b>0.99] # a = 29 + 1 = 30; size = 0.9910226; 0.0089774
+# (1-p)^29
+
+# Exercise 6 - Shit question
+dt <- data.table(a=0:10, b=cumsum(dbinom(x=0:10, size=10, prob=0.9)))
+# Think only evidence if x=10? 
+0.9^10 # 0.3486784
+options(scipen = 999)
+dt <- data.table(a=0:12, b=cumsum(dbinom(x=0:12, size=12, prob=0.9)))
+dt
+```
+## Chapter 8 mixed exercises
+```{r}
+dt <- data.table(a=0:15, b=cumsum(dbinom(0:15, size=15, prob=0.35)))
+dt[b>0.95] # Cu = 8+1
+1-dt[a==8] # 0.04219384	
+
+sum(dbinom(9:15, size=15, prob=0.5)) # 0.3036194
+
+# Question 2
+dt <- data.table(a=0:3, b=cumsum(dpois(x=0:3, lambda=3.5)))
+dt[b<0.05] # Only if P[X=0]
+# 0.03019738	
+dpois(0, lambda=3) # 0.04978707; power
+
+# Question 3
+qnorm(p=0.025, mean=8, sd=sqrt(1/2)) # 6.614096
+qnorm(p=0.975, mean=8, sd=sqrt(1/2)) # 9.385904
+# 5 %
+pnorm(q=qnorm(p=0.975, mean=8, sd=sqrt(1/2)), mean=7, sd=sqrt(1/2)) - pnorm(q=qnorm(p=0.025, mean=8, sd=sqrt(1/2)), mean=7, sd=sqrt(1/2)) # 0.7070111
+
+# Power is 1-prob of type 2
+# 0.2929889
+
+
+# Question 4
+(1-sum(dpois(0:17, lambda=10)))*(1-sum(dpois(0:18, lambda=10))) + sum(dpois(0:3, lambda=10))*sum(dpois(0:2, lambda=10)) # 0.0001312308
+
+(1-sum(dpois(0:17, lambda=5)))*(1-sum(dpois(0:18, lambda=5))) + sum(dpois(0:3, lambda=5))*sum(dpois(0:2, lambda=5)) # 0.03303602
+
+# Question 5
+1-sum(dpois(0:7, lambda=4.5)) # 0.08658647
+1-ppois(7, lambda=4.5)
+
+dt <- data.table(a=1:10, b=1-ppois(7, lambda=1:10))
+ggplot(data=dt, aes(x=a, y=b)) + 
+    geom_point() + 
+    geom_line() + 
+    theme_simple
+
+```
+
+```{r}
+# Question 6
+dbinom(x=0:3, size=15, prob=0.45) %>% sum() # 0.04242127
+dt <- data.table(a=1:5/10)
+dt <- dt %>% mutate(b=pbinom(q=3, size=15, prob=a))
+ggplot(data=dt, aes(x=a, y=b)) + geom_point() + geom_line() + theme_simple
+```
+```{r}
+# Question 7
+dt <- data.table(a=0:20, b=cumsum(dpois(0:20, lambda=2)))
+dt[b>0.92] # Cu = 4+1
+1-sum(dpois(0:4, lambda=4)) # 0.3711631
+
+# Question 8
+#HO: \lambda=2, H1: \lambda > 2
+library(TREX)
+dt <- data.table(a=0:15, 
+                 b=cumsum(dpois(x=0:15, lambda=2)))
+dt[b>0.92] # cu = 4+1
+
+1-ppois(4, lambda=3) # 0.1847368; probability of producting 5 or more defects given lambda = 3
+
+# Po(6)
+dt <- data.table(a=0:50, 
+                 b=cumsum(dpois(x=0:50, lambda=6)))
+dt[b>0.9] # b=10+1, so upper limit of cu
+
+1-ppois(10, lambda=9) # 0.2940117
+
+# Question 9
+ppois(2, lambda=6) # 0.0619688
+dt <- data.table(a=c(1,1.5, 2, 4, 5,6,7))
+dt <- dt %>% mutate(b=ppois(q=2, lambda=a))
+
+ggplot(data=dt, mapping=aes(x=a, y=b)) + 
+    geom_point() + 
+    geom_line() + theme_simple
+
+# Again, there's some solve command that will do this! Mathematica!
+# lambda<1.5
+```
+```{r}
+# Question 10
+1-sum(dbinom(0:4, size=10, prob=0.1)) # 0.001634937
+1-pbinom(4, size=10, prob=0.1)
+
+dt <- data.table(a=seq(0.15, 0.4, by=0.05))
+dt <- dt %>% mutate(b=1-pbinom(4, size=10, prob=a))
+dt # matches
+
+1-pbinom(2, size=5, prob=0.1) # 0.00856
+dt <- dt %>% mutate(c=1-pbinom(2, size=5, prob=a))
+dt
+
+ggplot(data=dt) + 
+    geom_point(data=dt, aes(x=a,y=b), colour=BITBlue) + 
+    geom_line(data=dt, aes(x=a,y=b), colour=BITBlue) + 
+    geom_point(data=dt, aes(x=a, y=c), colour=BITBlack) + 
+    geom_line(data=dt, aes(x=a,y=c), colour=BITBlack) 
+
+# Quicker, and has better power for lower values of p. 
+```
+```{r}
+# Exercise 11
+options(scipen = 99)
+1-ppois(q=5, lambda=3) # 0.08391794
+dt <- data.table(a=4:10/10) # multiply by 10!
+dt <- dt %>% mutate(b=1-ppois(5, lambda=a*10))
+
+# Probability of a type 1 error to be less than 5% for n=15
+dt2 <- data.table(a=0:100, b=cumsum(dpois(x=0:100, lambda=4.5)))
+dt2[b>0.95] # cu = 8+1
+1-dt2[a==8] # size is 0.04025731
+
+dt <- dt %>% mutate(c=1-ppois(8, lambda= 15 * a))
+dt
+
+ggplot(data=dt) + 
+    geom_point(data=dt, aes(x=a,y=b), colour=BITBlue) + 
+    geom_line(data=dt, aes(x=a,y=b), colour=BITBlue) + 
+    geom_point(data=dt, aes(x=a, y=c), colour=BITBlack) + 
+    geom_line(data=dt, aes(x=a,y=c), colour=BITBlack) 
+# They cross around 0.63
+```
+```{r}
+# Challenge
+outer(1:6, 1:6)
+
+
+# 1/36 chance given unbiased; testing against p>1/36; binomial with 12 attempts
+1-sum(dbinom(size=12, prob=1/36, x=0:1)) # 0.042329
+# 1 - (1-p)^11 * (1-11p)
+
+sum(dbinom(4:6, size=6, prob=1/6)) + sum(dbinom(0:3, size=6, prob=1/6)) * sum(dbinom(4:6, size=6, prob=1/6)) # 0.01732825
+
+```
+
+# Example A2 past paper - pp.182
+
+```{r}
+dt <- data.table(a=1:6, O=c(52,31,12,7,1,1))
+dt[,sum(O)] # 104
+dt <- dt %>% mutate(E=c(dgeomw(1:5, prob=0.4), 
+                        1-sum(dgeomw(1:5, prob=0.4)))*sum(O))
+
+dt[,sum(((O-E)^2)/E)] # 14.87929
+
+# Takeaways; the last Ei is 6 or above! 
+# If E < 5 you have to merge it! The following code merges
+
+merge <- c(a=5, dt %>%
+                   slice(5:6) %>%
+                   select(2:3)%>%
+                   colSums()) %>%
+    t()
+
+dt2 <- rbind(dt %>% slice(1:4) %>% as.matrix(), merge) %>% 
+    as.data.table()
+
+
+qchisq(p=0.95, df=5) # 11.0705; apparently four DF? But unclear why?
+
+# Calculate the test statistic
+
+```
+```{r}
+# Question 4
+pnorm(q=2.3, mean=2.1, sd=sqrt(2.1/200), lower.tail = F) # 0.02548097
+sum(dpois(0:1, lambda=4.2)) # 0.077977
+
+
+```
+```{r}
+# Question 5
+dt <- matrix(data=c(1,3,2,
+              -1,21,20,
+              1,1,1), nrow=3, byrow=T)
+solve(dt, c(1,4.9, 0.55))
+library(matlib)
+inv(dt) %*% c(1,4.9, 0.55)
+
+```
+```{r}
+# Question 6
+1-sum(dpois(0:17, lambda=15)) # 0.2511412
+1- sum(dbinom(0:17, size=500, prob=0.03)) # 0.2485376
+```
+```{r}
+# Question 7 
+dt <- data.table(a=0:25, b=cumsum(dbinom(0:25, size=25, prob=1/6)))
+dt[b<0.1] # X = 0 on lower tail, or 1 as a bit larger
+dt[b>0.95] # a = 7
+
+dt %>% filter(a==0) # 0.0104826	
+dt %>% filter(a==1) # 0.06289558
+
+dt[b<0.2]
+1-dt %>% filter(a==7) # 0.04473193
+
+
+# 0.05521453
+
+
+
+# Again; 
+(1-1/6)^12 # 0.1121567
+
+options(scipen = 100)
+dt <- data.table(a=0:100/100)
+dt <- dt %>% mutate(philip=(1-a)^24 * (1+24*a),gemma=(1-a)^12)
+dt[a==0.09] # The power of the first test
+
+# Phillips power is higher when p=0.09 at 0.3286098 vs 0.3224755, and it has a lower actual significance level!
+
+```
+# June 2019 FS1 Past Paper
+Let's fucking goooo! 
+```{r}
+1-sum(dbinom(x=0:2, size=40, prob=0.02)) # 0.04567023
+
+dnbinomw(trial=40, size=3, prob=0.02)
+0.02*choose(39, 2) * (0.02)^2 * (0.98)^37
+3/0.02
+```
+```{r}
+1-sum(dpois(0:3, lambda=20/3))
+dbinom(x=3, size=4, prob=exp(-5/3))
+dpois(1, lambda=5/3)*dpois(1, lambda=5)
+```
+```{r}
+1-pnorm(q=3.25, mean=3, sd=sqrt(2.6/50)) # 0.1364688
+1-pnorm(q=3.25, mean=3, sd=sqrt(2.6/80)) # 0.08275893
+```
+```{r}
+dt <- data.table(a=0:50, b=cumsum(dpois(x=0:50, lambda=7.5)))
+dt[b<0.98] # cu - 1 = 13; 
+1-0.9784353490	# 0.02156465
+dt[b<0.03]
+p <- 0.0202567151 + 0.02156465
+
+1-sum(dbinom(x=0:1, size=8, prob=p))
+sum(dpois(x=3:13, lambda=6.3))
+```
+```{r}
+(2*log(2)-1)/log(2)^2
+```
+```{r}
+dgeomw(trials=4, prob=1/3)
+sum(dgeomw(trials=1:5, prob=1/3))
+1-(1-1/3)^5
+```
+```{r}
+options(scipen = 99)
+dt <- data.table(a=1:100, 
+                 blue=dgeomw(trials = 1:100, prob=1/3), 
+                 red=dgeomw(trial=1:100, prob=2/3))
+dt %>% mutate(bluescore=a*blue, 
+              redscore=a*red) 
+```
+```{r}
+(exp(1)*1/3)/(1-exp(1)*(1-1/3))
+```
+
+```{r}
+dt <- data.table(a=c(1,2,3,4,5),
+                 O=c(5,21,23,13,18), 
+                 E=c(5.53, 14.89, 24.26, 22.24, 13.08))
+dt[,sum((O-E)^2/E)] # 8.312993
+
+qchisq(p=0.95, df=3) # 7.814728
+
+1/80 * (4+42+69+52+55+42)
+
+3.3/6
+```
+
+
+
+
