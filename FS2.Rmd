@@ -433,9 +433,42 @@ sxx = 465 - 0.1*67*65
 syy=429 - 0.1*65^2
 sxy=434 - 0.1*67*65
 sxy/sqrt(sxx*syy) # -0.1083237
-
+# It's the same as correlation is unaffected by affine transformations
+# Probably not, but wouldn't stand up to statistical test. 
 
 # Question 2
+# Not worth doing
+
+# Question 3
+spp = 85.5
+spq=-11.625
+sqq=77.0375 - (1/8)*(491/20)^2
+spq/sqrt(sqq*spp) # -0.9643293
+# There's a clear negative, almost linear, correlation between them. Rank correlation of one. 
+
+# Question 4
+# Discrete data, already using ranks. Not from bivariate normal distribution.
+1-6*58/990 # 0.6484848
+# Use their tables, two tailed therefore alpha = 0.025. 
+
+# Question 5
+# Non-parametric alternative to PMCC, so with discrete data sets.
+1-6*28/(8*9*10) # 0.7666667
+
+
+#  Question 7 
+1-16/56 # 0.7142857
+
+# Question 8 
+# You assume the data generating process is bivariate normal
+
+# Question 10
+dt <- data.table(x=c(49, 76, 69, 71, 50, 64, 78, 74),
+                 y=c(25, 88, 80, 62, 37, 86, 89, 67))
+cor.test(dt$x, dt$y, method="spearman")
+
+# Question 17
+1-6*26/(8*9*10) # 0.7833333
 
 ```
 
